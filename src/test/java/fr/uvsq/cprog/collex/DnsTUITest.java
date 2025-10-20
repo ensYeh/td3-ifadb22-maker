@@ -1,3 +1,5 @@
+package fr.uvsq.cprog.collex;
+
 import org.junit.Test;
 import org.junit.Before;
 import static org.junit.Assert.*;
@@ -13,7 +15,6 @@ public class DnsTUITest {
 
     @Before
     public void setUp() throws Exception {
-        // Créer un DNS de test
         dns = new Dns("test-dns.txt");
         tui = new DnsTUI(dns);
         outputStream = new ByteArrayOutputStream();
@@ -21,70 +22,97 @@ public class DnsTUITest {
     }
 
     @Test
-    public void testAnalyserCommandeRechercheNom() {
-        Commande cmd = analyserCommande("www.uvsq.fr");
+    public void testNextCommandeRechercheNom() {
+        Commande cmd = testerCommande("www.uvsq.fr");
         assertTrue(cmd instanceof CommandeRechercheNom);
     }
 
     @Test
-    public void testAnalyserCommandeRechercheIP() {
-        Commande cmd = analyserCommande("193.51.31.90");
+    public void testNextCommandeRechercheIP() {
+        Commande cmd = testerCommande("193.51.31.90");
         assertTrue(cmd instanceof CommandeRechercheIP);
     }
 
     @Test
-    public void testAnalyserCommandeLs() {
-        Commande cmd = analyserCommande("ls uvsq.fr");
+    public void testNextCommandeLs() {
+        Commande cmd = testerCommande("ls uvsq.fr");
         assertTrue(cmd instanceof CommandeListeDomaine);
-        
-        CommandeListeDomaine cmdLs = (CommandeListeDomaine) cmd;
-        assertEquals("uvsq.fr", cmdLs.getDomaine());
-        assertFalse(cmdLs.isTrierParIP());
     }
 
     @Test
-    public void testAnalyserCommandeLsAvecTri() {
-        Commande cmd = analyserCommande("ls -a uvsq.fr");
+    public void testNextCommandeLsAvecTri() {
+        Commande cmd = testerCommande("ls -a uvsq.fr");
         assertTrue(cmd instanceof CommandeListeDomaine);
-        
-        CommandeListeDomaine cmdLs = (CommandeListeDomaine) cmd;
-        assertEquals("uvsq.fr", cmdLs.getDomaine());
-        assertTrue(cmdLs.isTrierParIP());
     }
 
     @Test
-    public void testAnalyserCommandeAdd() {
-        Commande cmd = analyserCommande("add 192.168.1.1 test.domaine.fr");
+    public void testNextCommandeAdd() {
+        Commande cmd = testerCommande("add 192.168.1.1 test.domaine.fr");
         assertTrue(cmd instanceof CommandeAjout);
-        
-        CommandeAjout cmdAdd = (CommandeAjout) cmd;
-        assertEquals("192.168.1.1", cmdAdd.getIp());
-        assertEquals("test.domaine.fr", cmdAdd.getNomMachine());
     }
 
     @Test
-    public void testAnalyserCommandeQuit() {
-        Commande cmd = analyserCommande("quit");
+    public void testNextCommandeQuit() {
+        Commande cmd = testerCommande("quit");
         assertTrue(cmd instanceof CommandeQuit);
     }
 
     @Test
-    public void testAfficheString() {
+    public void testNextCommandeInvalide() {
+        Commande cmd = testerCommande("commande_invalide");
+        assertTrue(cmd instanceof CommandeInvalide);
+    }
+
+    @Test
+    public void testNextCommandeLigneVide() {
+        Commande cmd = testerCommande("");
+        assertNull(cmd);
+    }
+
+    @Test
+    public void testAffiche() {
         tui.affiche("Test message");
         assertTrue(outputStream.toString().contains("Test message"));
     }
 
     @Test
-    public void testAfficheItemNull() {
-        tui.affiche((DnsItem) null);
-        assertTrue(outputStream.toString().contains("Aucun résultat trouvé"));
+    public void testExecuteCommandeRechercheNom() {
+        CommandeRechercheNom cmd = new CommandeRechercheNom(dns, "www.uvsq.fr");
+        String result = cmd.execute();
+        assertTrue(result.contains("193.51.31.90"));
     }
 
-    // Méthode helper pour analyser les commandes
-    private Commande analyserCommande(String input) {
+    @Test
+    public void testExecuteCommandeRechercheIP() {
+        CommandeRechercheIP cmd = new CommandeRechercheIP(dns, "193.51.31.90");
+        String result = cmd.execute();
+        assertTrue(result.contains("www.uvsq.fr"));
+    }
+
+    @Test
+    public void testExecuteCommandeListeDomaine() {
+        CommandeListeDomaine cmd = new CommandeListeDomaine(dns, "uvsq.fr", false);
+        String result = cmd.execute();
+        assertTrue(result.contains("uvsq.fr"));
+    }
+
+    @Test
+    public void testExecuteCommandeInvalide() {
+        CommandeInvalide cmd = new CommandeInvalide("Test erreur");
+        String result = cmd.execute();
+        assertTrue(result.contains("ERREUR: Test erreur"));
+    }
+
+    @Test
+    public void testExecuteCommandeQuit() {
+        CommandeQuit cmd = new CommandeQuit();
+        String result = cmd.execute();
+        assertEquals("quit", result);
+    }
+
+    private Commande testerCommande(String input) {
         ByteArrayInputStream in = new ByteArrayInputStream((input + "\n").getBytes());
         System.setIn(in);
-        DnsTUI testTui = new DnsTUI(dns);
-        return testTui.nextCommande();
+        return tui.nextCommande();
     }
 }

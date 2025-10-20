@@ -1,5 +1,6 @@
+package fr.uvsq.cprog.collex;
+
 import java.util.Scanner;
-import java.util.List;
 
 public class DnsTUI {
     private final Dns dns;
@@ -18,45 +19,40 @@ public class DnsTUI {
             return null;
         }
         
-        // Gestion de la commande quit
         if (ligne.equalsIgnoreCase("quit")) {
             return new CommandeQuit();
         }
         
         try {
-            return analyserCommande(ligne);
-        } catch (IllegalArgumentException e) {
-            return new CommandeInvalide("Commande invalide: " + e.getMessage());
-        }
-    }
-
-    private Commande analyserCommande(String ligne) {
-        String[] parties = ligne.split("\\s+");
-        
-        if (parties.length == 1) {
-            String argument = parties[0];
-            if (AdresseIP.estAdresseIPValide(argument)) {
-                return new CommandeRechercheIP(argument);
-            } else if (NomMachine.estNomMachineValide(argument)) {
-                return new CommandeRechercheNom(argument);
-            } else {
-                throw new IllegalArgumentException("Argument non reconnu comme IP ou nom de machine valide");
+            String[] parties = ligne.split("\\s+");
+            
+            if (parties.length == 1) {
+                String argument = parties[0];
+                if (AdresseIP.estAdresseIPValide(argument)) {
+                    return new CommandeRechercheIP(dns, argument);
+                } else if (NomMachine.estNomMachineValide(argument)) {
+                    return new CommandeRechercheNom(dns, argument);
+                } else {
+                    throw new IllegalArgumentException("Commande non reconnue: " + argument);
+                }
             }
-        }
-        
-        String premierMot = parties[0].toLowerCase();
-        
-        switch (premierMot) {
-            case "ls":
-                return analyserCommandeLs(parties);
-            case "add":
-                return analyserCommandeAdd(parties);
-            default:
-                throw new IllegalArgumentException("Commande non reconnue: " + premierMot);
+            
+            String commande = parties[0].toLowerCase();
+            
+            if (commande.equals("ls")) {
+                return creerCommandeLs(parties);
+            } else if (commande.equals("add")) {
+                return creerCommandeAdd(parties);
+            } else {
+                throw new IllegalArgumentException("Commande non reconnue: " + commande);
+            }
+            
+        } catch (IllegalArgumentException e) {
+            return new CommandeInvalide(e.getMessage());
         }
     }
 
-    private Commande analyserCommandeLs(String[] parties) {
+    private Commande creerCommandeLs(String[] parties) {
         if (parties.length < 2) {
             throw new IllegalArgumentException("La commande 'ls' nécessite un nom de domaine");
         }
@@ -74,10 +70,10 @@ public class DnsTUI {
             domaine = parties[1];
         }
         
-        return new CommandeListeDomaine(domaine, trierParIP);
+        return new CommandeListeDomaine(dns, domaine, trierParIP);
     }
 
-    private Commande analyserCommandeAdd(String[] parties) {
+    private Commande creerCommandeAdd(String[] parties) {
         if (parties.length != 3) {
             throw new IllegalArgumentException("La commande 'add' nécessite une adresse IP et un nom de machine");
         }
@@ -93,41 +89,11 @@ public class DnsTUI {
             throw new IllegalArgumentException("Nom de machine invalide: " + nomMachine);
         }
         
-        return new CommandeAjout(ip, nomMachine);
+        return new CommandeAjout(dns, ip, nomMachine);
     }
 
     public void affiche(String message) {
         System.out.println(message);
-    }
-
-    public void affiche(DnsItem item) {
-        if (item != null) {
-            affiche(item.toString());
-        } else {
-            affiche("Aucun résultat trouvé");
-        }
-    }
-
-    public void affiche(List<DnsItem> items, boolean trierParIP) {
-        if (items == null || items.isEmpty()) {
-            affiche("Aucun résultat trouvé");
-            return;
-        }
-        
-        List<DnsItem> itemsTries;
-        if (trierParIP) {
-            itemsTries = items.stream()
-                .sorted((i1, i2) -> i1.getAdresseIP().getAdresse().compareTo(i2.getAdresseIP().getAdresse()))
-                .toList();
-        } else {
-            itemsTries = items.stream()
-                .sorted((i1, i2) -> i1.getNomMachine().getNom().compareTo(i2.getNomMachine().getNom()))
-                .toList();
-        }
-        
-        for (DnsItem item : itemsTries) {
-            affiche(item.getAdresseIP().getAdresse() + " " + item.getNomMachine().getNom());
-        }
     }
 
     public void demarrer() {
@@ -148,11 +114,13 @@ public class DnsTUI {
                     continue;
                 }
                 
+                String resultat = commande.execute();
+                
                 if (commande instanceof CommandeQuit) {
                     continuer = false;
                     affiche("Au revoir !");
                 } else {
-                    commande.executer(this, dns);
+                    affiche(resultat);
                 }
                 
             } catch (Exception e) {
