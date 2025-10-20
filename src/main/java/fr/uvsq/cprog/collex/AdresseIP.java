@@ -15,4 +15,5 @@ public class AdresseIP {
     public String getAdresse() {
         return ip;
     }
+    
 }
